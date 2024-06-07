@@ -13,8 +13,8 @@ export default async function Home() {
           <Chart session={session as { user: { name?: string | undefined } }} />
         </div>
       ) : (
-        <div className="flex flex-1 items-center justify-center">
-          <div className="bg-white bg-opacity-10 p-8 rounded-lg shadow-2xl backdrop-filter backdrop-blur-sm">
+        <div className="flex flex-1 items-center justify-center text-">
+          <div className="bg-white bg-opacity-10 p-6 rounded-lg shadow-2xl backdrop-filter backdrop-blur-sm">
             <h2 className="text-3xl font-bold text-white mb-6 text-center">
               Welcome Back
             </h2>

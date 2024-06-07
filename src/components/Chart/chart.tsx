@@ -103,7 +103,7 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
     chart: {
       type: 'area',
       backgroundColor: 'black',
-      height: 800,
+      height: 650,
       zooming: {
         type: 'x',
       },
@@ -111,22 +111,22 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
     title: {
       text: `${symbol} Live Price`,
       align: 'left',
-      style: { color: '#D0D3D4' },
+      style: { color: '#D0D3D4', fontSize: '16px' },
     },
     subtitle: {
       text: 'Click and drag in the plot area to zoom in',
       align: 'left',
-      style: { color: '#D0D3D4' },
+      style: { color: '#D0D3D4', fontSize: '10px' },
     },
     xAxis: {
       type: 'datetime',
-      labels: { style: { color: '#D0D3D4' } },
-      title: { style: { color: '#D0D3D4' } },
+      labels: { style: { color: '#D0D3D4', fontSize: '10px' } },
+
     },
     yAxis: {
       gridLineWidth: 0,
-      labels: { style: { color: '#D0D3D4' } },
-      title: { text: '', style: { color: '#D0D3D4' } },
+      labels: { style: { color: '#D0D3D4', fontSize: '10px' } },
+      title: { text: '', style: { color: '#D0D3D4',  fontSize: '10px' } },
       opposite: true,
       plotLines: [
         {
@@ -137,7 +137,7 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
           label: {
             text: `$ ${realtimePrice}`,
             align: 'left',
-            style: { color: '#2ECC71', fontSize: '16px', fontWeight: 'bold' },
+            style: { color: '#2ECC71', fontSize: '12px', fontWeight: 'bold' },
           },
         },
       ],
@@ -186,12 +186,12 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
   };
 
   return (
-    <div className="w-full pt-6 px-8 bg-black min-h-screen relative">
-      <div className="flex items-center mb-4 p-4 bg-gray-800 rounded-lg shadow-lg">
+    <div className="w-full pt-4 px-6 bg-black min-h-screen relative">
+      <div className="flex items-center mb-4 p-3 bg-gray-800 rounded-lg shadow-lg text-sm">
         <select
           value={symbol}
           onChange={handleSymbolChange}
-          className="mx-4 border rounded p-2 bg-gray-700 text-white shadow-md hover:bg-gray-600 focus:bg-gray-800"
+          className="mx-3 border rounded p-1.5 bg-gray-700 text-white shadow-md hover:bg-gray-600 focus:bg-gray-800"
         >
           <option value="ETHUSDT">ETH/USDT</option>
           <option value="BTCUSDT">BTC/USDT</option>
@@ -200,7 +200,7 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
         <select
           value={interval}
           onChange={handleIntervalChange}
-          className="border rounded p-2 bg-gray-700 text-white shadow-md hover:bg-gray-600 focus:bg-gray-800"
+          className="border rounded p-1.5 bg-gray-700 text-white shadow-md hover:bg-gray-600 focus:bg-gray-800"
         >
           <option value="1m">1 Minute</option>
           <option value="5m">5 Minutes</option>
@@ -210,24 +210,24 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
         </select>
         <button
           onClick={handleAddToWatchlist}
-          className="ml-4 px-4 py-2 bg-blue-500 text-white rounded shadow-md hover:bg-blue-400 focus:bg-blue-400"
+          className="mx-3 px-3 py-1.5 bg-blue-500 text-white rounded shadow-md hover:bg-blue-400 focus:bg-blue-400"
         >
           Add to Watchlist
         </button>
         <button
           onClick={() => setShowWatchlist(!showWatchlist)}
-          className="ml-4 px-4 py-2 bg-green-500 text-white rounded shadow-md hover:bg-green-400 focus:bg-green-400"
+          className="px-3 py-1.5 bg-green-500 text-white rounded shadow-md hover:bg-green-400 focus:bg-green-400"
         >
           {showWatchlist ? "Hide" : "Show"} Watchlist
         </button>
         <button
           onClick={() => setShowTradeCard(!showTradeCard)}
-          className="ml-4 px-4 py-2 bg-purple-500 text-white rounded shadow-md hover:bg-purple-400 focus:bg-purple-400"
+          className="ml-3 px-3 py-1.5 bg-purple-500 text-white rounded shadow-md hover:bg-purple-400 focus:bg-purple-400"
         >
           {showTradeCard ? "Hide" : "Show"} Trade Card
         </button>
         <div className="ml-auto flex items-center">
-          <div className="text-2xl text-white">
+          <div className="text-xl text-white">
             👋..{" "}
             <p className="inline ml-1 text-white">
               {session.user.name?.split(" ")[0] || ""}
@@ -240,9 +240,9 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
       </div>
 
       {showWatchlist && (
-        <div className="mb-4 p-4 bg-gray-800 rounded-lg shadow-lg">
+        <div className="mb-4 p-3 bg-gray-800 rounded-lg shadow-lg text-xs">
           <h2 className="text-white text-lg mb-2">Watchlist</h2>
-          <ul className="flex space-x-4">
+          <ul className="flex space-x-2">
             {watchlist.map((item) => (
               <li key={item} className="bg-gray-700 p-2 rounded text-white">
                 <button onClick={() => setSymbol(item)}>{item}</button>
@@ -261,8 +261,8 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
       <div className="relative" ref={chartRef}>
         {showTradeCard && (
           <Draggable bounds="parent">
-            <div className="absolute top-10 left-10 z-10 bg-gray-800 p-4 rounded-lg shadow-lg w-1/4 cursor-grabbing">
-              <h2 className="text-white text-lg mb-2">Trade {symbol}</h2>
+            <div className="absolute top-10 left-10 z-10 bg-gray-800 p-3 rounded-lg shadow-lg w-1/4 cursor-grabbing text-xs">
+              <h2 className="text-white text-sm mb-2">Trade {symbol}</h2>
               <input
                 type="number"
                 placeholder="Quantity"
@@ -284,8 +284,8 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
               >
                 Switch to {isBuy ? "Sell" : "Buy"}
               </button>
-              <div className="mt-2 text-white">
-                <p>Balance: ${paperBalance.toFixed(2)}</p>
+              <div className="my-2 text-white">
+                <p className="">Balance: ${paperBalance.toFixed(2)}</p>
                 <p>
                   Holdings:{" "}
                   {Object.entries(holdings).map(([key, value]) => (
