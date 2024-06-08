@@ -1,189 +1,117 @@
 "use client";
-import React, { useEffect, useState, useRef } from "react";
-import Highcharts from "highcharts";
+import React, { useState, useRef, useCallback } from "react";
 import HighchartsReact from "highcharts-react-official";
+import Highcharts from "highcharts";
 import "highcharts/modules/exporting";
 import "highcharts/modules/export-data";
-import Draggable from "react-draggable";
+import {
+  DEFAULT_SYMBOL,
+  DEFAULT_INTERVAL,
+  AVAILABLE_SYMBOLS,
+  AVAILABLE_INTERVALS,
+  INITIAL_BALANCE,
+  INITIAL_WATCHLIST,
+} from "@/constants/chartConstants";
+import { Symbol, Interval, Holdings, ChartProps, Watchlist } from "@/types/chart";
+import { useHistoricalData } from "@/hooks/useHistoricalData";
+import { useRealtimePrice } from "@/hooks/useRealtimePrice";
+import { WatchlistCard } from "./WatchlistCard";
+import { TradeCard } from "./TradeCard";
+import { getChartOptions } from "./ChartOptions";
 import Logout from "@/components/Logout/logout";
 
-interface ChartProps {
-  session: {
-    user: {
-      name?: string;
-    };
-  };
-}
-
-const fetchHistoricalData = async (symbol: string, interval: string) => {
-  const response = await fetch(
-    `https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}`
-  );
-  const data = await response.json();
-  return data.map((d: any[]) => [d[0], parseFloat(d[4])]) as [number, number][];
-};
 
 const Chart: React.FC<ChartProps> = ({ session }) => {
-  const [historicalData, setHistoricalData] = useState<[number, number][]>([]);
-  const [symbol, setSymbol] = useState<string>("BTCUSDT");
-  const [interval, setInterval] = useState<string>("1h");
-  const [realtimePrice, setRealtimePrice] = useState<number>(0);
+  const [symbol, setSymbol] = useState<Symbol>(DEFAULT_SYMBOL);
+  const [interval, setInterval] = useState<Interval>(DEFAULT_INTERVAL);
   const [isBuy, setIsBuy] = useState<boolean>(true);
   const [quantity, setQuantity] = useState<string>("");
-  const [paperBalance, setPaperBalance] = useState<number>(5000000);
-  const [holdings, setHoldings] = useState<{ [key: string]: number }>({});
-  const [watchlist, setWatchlist] = useState<string[]>(["BTCUSDT", "ETHUSDT"]);
+  const [paperBalance, setPaperBalance] = useState<number>(INITIAL_BALANCE);
+  const [holdings, setHoldings] = useState<Holdings>({} as Holdings);
+  const [watchlist, setWatchlist] = useState<Watchlist>([...INITIAL_WATCHLIST]);
   const [showWatchlist, setShowWatchlist] = useState<boolean>(false);
   const [showTradeCard, setShowTradeCard] = useState<boolean>(false);
   const chartRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const data = await fetchHistoricalData(symbol, interval);
-      setHistoricalData(data);
-    };
 
-    fetchData();
-  }, [symbol, interval]);
+  const historicalData = useHistoricalData(symbol, interval);
+  const { realtimePrice, historicalData: realtimeData } = useRealtimePrice(symbol);
 
-  useEffect(() => {
-    const socket = new WebSocket(
-      `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_1m`
-    );
 
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setRealtimePrice(parseFloat(data.k.c));
-      setHistoricalData((prev) => [...prev, [data.k.T, parseFloat(data.k.c)] as [number, number]]);
-    };
+  const handleSymbolChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSymbol(e.target.value as Symbol);
+  }, []);
 
-    return () => socket.close();
-  }, [symbol]);
+  const formatSymbol = (symbol: string) => {
+    return symbol.replace(/([A-Z]+)(USDT)/, '$1/$2');
+  };
 
-  const handleSymbolChange = (e: React.ChangeEvent<HTMLSelectElement>) => setSymbol(e.target.value);
-  const handleIntervalChange = (e: React.ChangeEvent<HTMLSelectElement>) => setInterval(e.target.value);
+  const handleIntervalChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setInterval(e.target.value as Interval);
+  }, []);
 
-  const handleTrade = () => {
-    const cost = realtimePrice * Number(quantity);
-    if (isBuy) {
-      if (cost <= paperBalance) {
-        setPaperBalance(paperBalance - cost);
-        setHoldings({
-          ...holdings,
-          [symbol]: (holdings[symbol] || 0) + Number(quantity),
-        });
-      } else {
-        alert("Insufficient balance for this transaction.");
-      }
+  const formatInterval = (interval: string) => {
+    switch (interval) {
+      case '1m':
+        return '1 Minute';
+      case '5m':
+        return '5 Minutes';
+      case '15m':
+        return '15 Minutes';
+      case '1h':
+        return '1 Hour';
+      case '1d':
+        return '1 Day';
+      default:
+        return interval;
+    }
+  };
+
+  const handleTrade = useCallback(() => {
+    const tradeQuantity = Number(quantity);
+    const cost = realtimePrice * tradeQuantity;
+
+    if (isBuy && cost <= paperBalance) {
+      setPaperBalance((prev) => prev - cost);
+      setHoldings((prev) => ({
+        ...prev,
+        [symbol]: (prev[symbol] || 0) + tradeQuantity,
+      }));
+    } else if (!isBuy && (holdings[symbol] || 0) >= tradeQuantity) {
+      setPaperBalance((prev) => prev + cost);
+      setHoldings((prev) => ({
+        ...prev,
+        [symbol]: prev[symbol] - tradeQuantity,
+      }));
     } else {
-      if ((holdings[symbol] || 0) >= Number(quantity)) {
-        setPaperBalance(paperBalance + cost);
-        setHoldings({
-          ...holdings,
-          [symbol]: holdings[symbol] - Number(quantity),
-        });
-      } else {
-        alert("Insufficient holdings for this transaction.");
-      }
+      alert(
+        isBuy
+          ? "Insufficient balance for this transaction."
+          : "Insufficient holdings for this transaction."
+      );
     }
     setQuantity("");
-  };
+  }, [isBuy, quantity, realtimePrice, symbol, paperBalance, holdings]);
 
-  const handleAddToWatchlist = () => {
+  const handleAddToWatchlist = useCallback(() => {
     if (!watchlist.includes(symbol)) {
-      setWatchlist([...watchlist, symbol]);
+      setWatchlist((prev) => [...prev, symbol]);
     }
-  };
+  }, [symbol, watchlist]);
 
-  const handleRemoveFromWatchlist = (item: string) => {
-    setWatchlist(watchlist.filter((sym) => sym !== item));
-  };
+  const handleRemoveFromWatchlist = useCallback((item: Symbol) => {
+    setWatchlist((prev) => prev.filter((sym) => sym !== item));
+  }, []);
 
-  const options: Highcharts.Options = {
-    chart: {
-      type: 'area',
-      backgroundColor: 'black',
-      height: 650,
-      zooming: {
-        type: 'x',
-      },
-    },
-    title: {
-      text: `${symbol} Live Price`,
-      align: 'left',
-      style: { color: '#D0D3D4', fontSize: '16px' },
-    },
-    subtitle: {
-      text: 'Click and drag in the plot area to zoom in',
-      align: 'left',
-      style: { color: '#D0D3D4', fontSize: '10px' },
-    },
-    xAxis: {
-      type: 'datetime',
-      labels: { style: { color: '#D0D3D4', fontSize: '10px' } },
+  const toggleWatchlist = useCallback(() => {
+    setShowWatchlist((prev) => !prev);
+  }, []);
 
-    },
-    yAxis: {
-      gridLineWidth: 0,
-      labels: { style: { color: '#D0D3D4', fontSize: '10px' } },
-      title: { text: '', style: { color: '#D0D3D4',  fontSize: '10px' } },
-      opposite: true,
-      plotLines: [
-        {
-          value: realtimePrice,
-          color: '#2ECC71',
-          dashStyle: 'Solid',
-          width: 1,
-          label: {
-            text: `$ ${realtimePrice}`,
-            align: 'left',
-            style: { color: '#2ECC71', fontSize: '12px', fontWeight: 'bold' },
-          },
-        },
-      ],
-    },
-    legend: { enabled: false },
-    plotOptions: {
-      area: {
-        fillColor: {
-          linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
-          stops: [
-            [0, 'rgba(255, 165, 0, 0.2)'],
-            [1, 'rgba(0, 0, 0, 1)'],      
-          ],
-        },
-        threshold: null,
-        marker: { radius: 2 },
-        lineWidth: 1,
-        states: { hover: { lineWidth: 2 } },
-      },
-    },
-    series: [
-      {
-        type: 'area',
-        name: `${symbol} Price`,
-        data: historicalData,
-        color: '#FFA500',
-      },
-    ],
-    credits: { enabled: false },
-    exporting: {
-      enabled: true,
-      buttons: {
-        contextButton: {
-          menuItems: [
-            'viewFullscreen',
-            'printChart',
-            'separator',
-            'downloadPNG',
-            'downloadJPEG',
-            'downloadSVG',
-            'downloadPDF',
-          ],
-        },
-      },
-    },
-  };
+  const toggleTradeCard = useCallback(() => {
+    setShowTradeCard((prev) => !prev);
+  }, []);
+
+  const chartOptions = getChartOptions(symbol, realtimePrice, [...historicalData, ...realtimeData]);
 
   return (
     <div className="w-full pt-4 px-6 bg-black min-h-screen relative">
@@ -193,20 +121,22 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
           onChange={handleSymbolChange}
           className="mx-3 border rounded p-1.5 bg-gray-700 text-white shadow-md hover:bg-gray-600 focus:bg-gray-800"
         >
-          <option value="ETHUSDT">ETH/USDT</option>
-          <option value="BTCUSDT">BTC/USDT</option>
-          <option value="BNBUSDT">BNB/USDT</option>
+          {AVAILABLE_SYMBOLS.map((sym) => (
+            <option key={sym} value={sym}>
+              {formatSymbol(sym)}
+            </option>
+          ))}
         </select>
         <select
           value={interval}
           onChange={handleIntervalChange}
           className="border rounded p-1.5 bg-gray-700 text-white shadow-md hover:bg-gray-600 focus:bg-gray-800"
         >
-          <option value="1m">1 Minute</option>
-          <option value="5m">5 Minutes</option>
-          <option value="15m">15 Minutes</option>
-          <option value="1h">1 Hour</option>
-          <option value="1d">1 Day</option>
+          {AVAILABLE_INTERVALS.map((int) => (
+            <option key={int} value={int}>
+              {formatInterval(int)}
+            </option>
+          ))}
         </select>
         <button
           onClick={handleAddToWatchlist}
@@ -215,16 +145,16 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
           Add to Watchlist
         </button>
         <button
-          onClick={() => setShowWatchlist(!showWatchlist)}
+          onClick={toggleWatchlist}
           className="px-3 py-1.5 bg-green-500 text-white rounded shadow-md hover:bg-green-400 focus:bg-green-400"
         >
           {showWatchlist ? "Hide" : "Show"} Watchlist
         </button>
         <button
-          onClick={() => setShowTradeCard(!showTradeCard)}
+          onClick={toggleTradeCard}
           className="ml-3 px-3 py-1.5 bg-purple-500 text-white rounded shadow-md hover:bg-purple-400 focus:bg-purple-400"
         >
-          {showTradeCard ? "Hide" : "Show"} Trade Card
+          {showTradeCard ? " " : " "} Paper Trading
         </button>
         <div className="ml-auto flex items-center">
           <div className="text-xl text-white">
@@ -240,65 +170,27 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
       </div>
 
       {showWatchlist && (
-        <div className="mb-4 p-3 bg-gray-800 rounded-lg shadow-lg text-xs">
-          <h2 className="text-white text-lg mb-2">Watchlist</h2>
-          <ul className="flex space-x-2">
-            {watchlist.map((item) => (
-              <li key={item} className="bg-gray-700 p-2 rounded text-white">
-                <button onClick={() => setSymbol(item)}>{item}</button>
-                <button
-                  onClick={() => handleRemoveFromWatchlist(item)}
-                  className="ml-2 text-red-500 hover:text-red-700"
-                >
-                  ❌
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <WatchlistCard
+          watchlist={watchlist}
+          onRemove={handleRemoveFromWatchlist}
+          onSelect={setSymbol}
+        />
       )}
 
       <div className="relative" ref={chartRef}>
         {showTradeCard && (
-          <Draggable bounds="parent">
-            <div className="absolute top-10 left-10 z-10 bg-gray-800 p-3 rounded-lg shadow-lg w-1/4 cursor-grabbing text-xs">
-              <h2 className="text-white text-sm mb-2">Trade {symbol}</h2>
-              <input
-                type="number"
-                placeholder="Quantity"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                className="w-full p-2 mb-2 bg-gray-700 text-white rounded shadow-md hover:bg-gray-600 focus:bg-gray-600"
-              />
-              <button
-                onClick={handleTrade}
-                className={`w-full p-2 mb-2 text-white rounded shadow-md ${
-                  isBuy ? "bg-green-500 hover:bg-green-400" : "bg-red-500 hover:bg-red-400"
-                }`}
-              >
-                {isBuy ? "Buy" : "Sell"} {symbol}
-              </button>
-              <button
-                onClick={() => setIsBuy(!isBuy)}
-                className="w-full p-2 bg-gray-500 text-white rounded shadow-md hover:bg-gray-400 focus:bg-gray-400"
-              >
-                Switch to {isBuy ? "Sell" : "Buy"}
-              </button>
-              <div className="my-2 text-white">
-                <p className="">Balance: ${paperBalance.toFixed(2)}</p>
-                <p>
-                  Holdings:{" "}
-                  {Object.entries(holdings).map(([key, value]) => (
-                    <span key={key}>
-                      {key}: {value}{" "}
-                    </span>
-                  ))}
-                </p>
-              </div>
-            </div>
-          </Draggable>
+          <TradeCard
+            symbol={symbol}
+            isBuy={isBuy}
+            quantity={quantity}
+            setQuantity={setQuantity}
+            onTrade={handleTrade}
+            onToggleBuySell={() => setIsBuy((prev) => !prev)}
+            paperBalance={paperBalance}
+            holdings={holdings}
+          />
         )}
-        <HighchartsReact highcharts={Highcharts} options={options} />
+        <HighchartsReact highcharts={Highcharts} options={chartOptions} />
       </div>
     </div>
   );
