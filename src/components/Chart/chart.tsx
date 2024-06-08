@@ -20,7 +20,6 @@ import { TradeCard } from "./TradeCard";
 import { getChartOptions } from "./ChartOptions";
 import Logout from "@/components/Logout/logout";
 
-
 const Chart: React.FC<ChartProps> = ({ session }) => {
   const [symbol, setSymbol] = useState<Symbol>(DEFAULT_SYMBOL);
   const [interval, setInterval] = useState<Interval>(DEFAULT_INTERVAL);
@@ -33,10 +32,8 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
   const [showTradeCard, setShowTradeCard] = useState<boolean>(false);
   const chartRef = useRef<HTMLDivElement>(null);
 
-
   const historicalData = useHistoricalData(symbol, interval);
-  const { realtimePrice, historicalData: realtimeData } = useRealtimePrice(symbol);
-
+  const { realtimePrice, realtimeData } = useRealtimePrice(symbol);
 
   const handleSymbolChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setSymbol(e.target.value as Symbol);
@@ -115,11 +112,11 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
 
   return (
     <div className="w-full pt-4 px-6 bg-black min-h-screen relative">
-      <div className="flex items-center mb-4 p-3 bg-gray-800 rounded-lg shadow-lg text-sm">
+      <div className="flex flex-wrap items-center mb-4 p-3 bg-gray-800 rounded-lg shadow-lg text-sm">
         <select
           value={symbol}
           onChange={handleSymbolChange}
-          className="mx-3 border rounded p-1.5 bg-gray-700 text-white shadow-md hover:bg-gray-600 focus:bg-gray-800"
+          className="mx-3 mb-2 md:mb-0 border rounded p-1.5 bg-gray-700 text-white shadow-md hover:bg-gray-600 focus:bg-gray-800"
         >
           {AVAILABLE_SYMBOLS.map((sym) => (
             <option key={sym} value={sym}>
@@ -130,7 +127,7 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
         <select
           value={interval}
           onChange={handleIntervalChange}
-          className="border rounded p-1.5 bg-gray-700 text-white shadow-md hover:bg-gray-600 focus:bg-gray-800"
+          className="mb-2 md:mb-0 border rounded p-1.5 bg-gray-700 text-white shadow-md hover:bg-gray-600 focus:bg-gray-800"
         >
           {AVAILABLE_INTERVALS.map((int) => (
             <option key={int} value={int}>
@@ -140,19 +137,19 @@ const Chart: React.FC<ChartProps> = ({ session }) => {
         </select>
         <button
           onClick={handleAddToWatchlist}
-          className="mx-3 px-3 py-1.5 bg-blue-500 text-white rounded shadow-md hover:bg-blue-400 focus:bg-blue-400"
+          className="mx-3 mb-2 md:mb-0 px-3 py-1.5 bg-blue-500 text-white rounded shadow-md hover:bg-blue-400 focus:bg-blue-400"
         >
           Add to Watchlist
         </button>
         <button
           onClick={toggleWatchlist}
-          className="px-3 py-1.5 bg-green-500 text-white rounded shadow-md hover:bg-green-400 focus:bg-green-400"
+          className="mb-2 md:mb-0 px-3 py-1.5 bg-green-500 text-white rounded shadow-md hover:bg-green-400 focus:bg-green-400"
         >
           {showWatchlist ? "Hide" : "Show"} Watchlist
         </button>
         <button
           onClick={toggleTradeCard}
-          className="ml-3 px-3 py-1.5 bg-purple-500 text-white rounded shadow-md hover:bg-purple-400 focus:bg-purple-400"
+          className="ml-3 mb-2 md:mb-0 px-3 py-1.5 bg-purple-500 text-white rounded shadow-md hover:bg-purple-400 focus:bg-purple-400"
         >
           {showTradeCard ? " " : " "} Paper Trading
         </button>
